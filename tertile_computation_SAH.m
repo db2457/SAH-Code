@@ -1,17 +1,19 @@
 %% Compute MAP Reductions (run in SAH Sub Analysis Folder
 
+cd 'C:\Users\db2457\OneDrive - Yale University\Desktop\Projects\Intervention Analysis\SAH Sub Analysis\SAH-Code'
+cd ..
 main_dir = cd;
 cd('Analysis\Epoch 60 min')
 master_data = readtable('Intervention_Analysis_Epoch_60.csv');
 cd(main_dir)
-cohort = readtable('SAH_cohort_SELECTED.csv');
+cohort = readtable('SAH_cohort_SELECTED_chartreview.xlsx');
 
 mean_map_reductions = []; % indices of this array matches cohort file
 
 %%
 for pt = 1:height(cohort) % iterate thru selected patients
     
-    MR = cohort.MR(pt,1);
+    MR = cohort.mr(pt,1);
     
     admin_indexes = find(strcmp(master_data.MR,MR) );
     
@@ -43,7 +45,7 @@ assignment(first_tertile_inds) = 1;
 assignment(second_tertile_inds) = 2;
 assignment(third_tertile_inds) = 3;
 
-cohort = [cohort table(assignment)] % add assignments to cohort table
+cohort = [cohort table(assignment)]; % add assignments to cohort table
 
 %% Assign tertiles to administrations in master_data file
 
@@ -51,7 +53,7 @@ admin_assignments = zeros(height(master_data),1); % assign each administration t
 
 for pt = 1:height(cohort) % iterate thru selected patients
     
-    MR = cohort.MR(pt,1); % get MR for this patient
+    MR = cohort.mr(pt,1); % get MR for this patient
     assign = assignment(pt); % get tertile assignment for this patient
     
     admin_indexes = find(strcmp(master_data.MR,MR) ); % find indices of pt in master_data file

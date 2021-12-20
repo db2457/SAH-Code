@@ -26,7 +26,7 @@ viable_threshold = 0.80; %what proportion of data must be viable for window anal
 below_threshold = 0.5; % min percent below of epoch time threhsold to be considered critical hypoperfusion
 
 jdat_filename = "JDAT_SAH_only.csv";
-cohort_filename = "SAH_cohort_ALL.csv";
+cohort_filename = "SAH_cohort_ALL.xlsx";
 eeg_overlap_filename = "EEG_overlap.csv";
 
 epochs = [15, 30, 60, 90, 120]; % +/- mins
@@ -42,26 +42,31 @@ covariates = {'event_id', 'MR', 'med', 'dose', 'PERCENT_BELOW_BEFORE', 'PERCENT_
                     'MEAN_COX_AFTER',  'MEAN_MAPopt_BEFORE', 'MEAN_MAPopt_AFTER', 'delta_MAP_AFTER','delta_MAP_BEFORE','MEAN_PRX_BEFORE', 'MEAN_PRX_AFTER',...
                     'MEAN_NIRS_ON_BEFORE', 'MEAN_NIRS_ON_AFTER',...
                     'MEAN_NIRS_OFF_BEFORE', 'MEAN_NIRS_OFF_AFTER',...
-                    'MEAN_COx_BELOW','MEAN_COx_NOTBELOW',...
-                    'MEAN_PRx_BELOW','MEAN_PRx_NOTBELOW',...
                     'time_taken'};
                             
                 
-% covariates_kim = {'event_id','mrn','date','PERCENT_BELOW_AFTER','mean_before','mean_after','median_before','median_after','min_before',...
-%                     'min_after','max_before','max_after'};  % DR. KIM CODE, ADDED 9/28
+covariates_kim = {'event_id','mrn','date','PERCENT_BELOW_AFTER','mean_before','mean_after','median_before','median_after','min_before',...
+                     'min_after','max_before','max_after'};  % DR. KIM CODE, ADDED 9/28
 %               
 % event_interest = overlap.event_id; % DR. KIM CODE, ADDED 9/28
 
-temp_cohort = readtable('SAH_cohort_SELECTED.csv'); temp_cohort_assignments = temp_cohort.tertile_assignment; temp_cohort = temp_cohort.mr;
+temp_cohort = readtable('SAH_cohort_SELECTED_chartreview.xlsx'); temp_cohort_assignments = temp_cohort.tertile_assignment; temp_cohort = temp_cohort.mr;
 num_events = zeros(1,length(temp_cohort))';
 num_responses = zeros(1,length(temp_cohort))';
 recording_time = zeros(1,length(temp_cohort))'; % total recroding time
 viable_recording_time = zeros(1,length(temp_cohort))'; % viable recroding time (ALL signals exist)
 times_below = cell(1,length(temp_cohort))'; 
 overall_time_below = zeros(1,length(temp_cohort))';
+overall_time_above = zeros(1,length(temp_cohort))';
+mean_LA_range = zeros(1,length(temp_cohort))';
+mean_LLA = zeros(1,length(temp_cohort))';
+mean_ULA = zeros(1,length(temp_cohort))';
+mean_TOx = zeros(1,length(temp_cohort))';
+mean_MAPopt = zeros(1,length(temp_cohort))';
+mean_ABP = zeros(1,length(temp_cohort))';
 
 %% 
-selected_analysis = 0;
+selected_analysis = 1;
 
 
 %% IMPORT ICM+ DATA
@@ -77,7 +82,7 @@ warning('off','MATLAB:table:ModifiedAndSavedVarnames') % turn annoying import wa
 for file = 1:length(files) % iterate through patients
   
     filename = files{file}; 
-    table = readtable(filename); % read CSV file
+    table_file = readtable(filename); % read CSV file
     
     % var check
     
@@ -86,19 +91,19 @@ for file = 1:length(files) % iterate through patients
 %         continue
 %     end
 %     
-    if isempty(table)
+    if isempty(table_file)
         disp([filename, 'is empty'])
         continue
     end
     
-    ALL_DATA{file} = table; % append to cell array
+    ALL_DATA{file} = table_file; % append to cell array
            
 end
 
 cd(code_folder)
 
 %% ANALYSIS
-
+cd ..
 mkdir('Analysis') % make new folder for cleaned files
 cd('Analysis') % change directory to that folder
 analysis_folder = cd;
@@ -126,26 +131,17 @@ for epoch = 3
     newdir = cd;
    
     epoch_file = cell2table(cell(0,length(covariates)));  epoch_file.Properties.VariableNames = covariates; % initialize empty epoch file
-%     epoch_file_kim  = cell2table(cell(0,length(covariates_kim)));  epoch_file_kim.Properties.VariableNames = covariates_kim; % initialize empty epoch file
+    epoch_file_kim  = cell2table(cell(0,length(covariates_kim)));  epoch_file_kim.Properties.VariableNames = covariates_kim; % initialize empty epoch file
 % %    
     
     for patient = 1:length(ALL_DATA)
         
         % collect information
         data = ALL_DATA{patient};
-
-        
-        if isempty(data)
-     
-           continue %skip patient 
-           
-        end
-        
         time = data.DateTime;
         split_filename = split(files{patient},'_');
         MR = split_filename{1};% assumes format MR_ ...
         
-  
         
         cohort_ind =  find(strcmp(cohort.mrn, MR)); % index of MR in cohort file
         
@@ -200,6 +196,14 @@ for epoch = 3
              display(['Injury side not defined for ', MR])
              continue % skip patient
          end
+         
+        % define ABP variable b.c. Hemosphere files have MAP not ABP :/
+        if any(contains(data.Properties.VariableNames,'ABP'))
+            ABP = 'ABP';
+        elseif any(contains(data.Properties.VariableNames,'MAP'))
+            ABP = 'MAP';
+        end
+        
          
         if off_injury % if performing an off-injury analysis, all sides are switched to uninjured side.
             side = ~side;
@@ -258,12 +262,12 @@ for epoch = 3
 %               apply to the half hour before, rather than a full hour
 %              before. 
 
-%             win_before_half = win_before(round((height(win_before))/2):end,:);
-%             viable_before = (sum(~any(isnan([win_before_half.(lower),win_before_half.(upper),win_before_half.ABP,win_before_half.(cox)]),2)) / fs) / (height(win_before_half)/fs);
-%             
-             % check data viability (%)
-            viable_before = (sum(~any(isnan([win_before.(lower),win_before.(upper),win_before.ABP,win_before.(cox)]),2)) / fs) / (height(win_before)/fs);
-            viable_after = (sum(~any(isnan([win_after.(lower),win_after.(upper),win_after.ABP,win_after.(cox)]),2)) / fs) / (height(win_after)/fs); 
+            win_before_half = win_before(round((height(win_before))/2):end,:);
+            viable_before = (sum(~any(isnan([win_before_half.(lower),win_before_half.(upper),win_before_half.(ABP)]),2)) / fs) / (height(win_before_half)/fs);
+            
+%              % check data viability (%)
+%             viable_before = (sum(~any(isnan([win_before.(lower),win_before.(upper),win_before.(ABP)]),2)) / fs) / (height(win_before)/fs);
+            viable_after = (sum(~any(isnan([win_after.(lower),win_after.(upper),win_after.(ABP)]),2)) / fs) / (height(win_after)/fs); 
             
            
             if viable_before < viable_threshold || viable_after < viable_threshold % if >90% of data is availabe on both sides
@@ -285,77 +289,31 @@ for epoch = 3
         
             
             [PERCENT_BELOW_BEFORE, PERCENT_ABOVE_BEFORE] = outside_limits(win_before,side,epochs(epoch)*60);
-            [PERCENT_BELOW_AFTER, PERCENT_ABOVE_AFTER,TIME_BELOW, MEAN_COx_BELOW , MEAN_COx_NOTBELOW,...
-             MEAN_PRx_BELOW,MEAN_PRx_NOTBELOW] = outside_limits(win_after,side,epochs(epoch)*60);
+            [PERCENT_BELOW_AFTER, PERCENT_ABOVE_AFTER,TIME_BELOW] = outside_limits(win_after,side,epochs(epoch)*60);
        
             % don't really need to calcualte effects manually like this...
 %             MEAN_NIRS_ON_LA_EFFECT = MEAN_NIRS_ON_BELOW - MEAN_NIRS_ON_NOTBELOW;
 %             MEAN_NIRS_OFF_LA_EFFECT = MEAN_NIRS_OFF_BELOW - MEAN_NIRS_OFF_NOTBELOW;
             
-            if selected_analysis
-                
-               if epoch == 3 
-                 
-                   if PERCENT_BELOW_AFTER >= below_threshold % if they spent more than 50% of their time after below LLA....
-                       MR_index = find(strcmp(temp_cohort,MR));
-                       num_responses(MR_index) =  num_responses(MR_index) + 1; % then classify this admin as a response
-
-                   end
-
-                   MR_index = find(strcmp(temp_cohort,MR)); % index of MR in temp_cohort
-                   num_events(MR_index) = num_events(MR_index) + 1; % iteratively add 
-                   times_below{MR_index} = [times_below{MR_index} TIME_BELOW]; % iteratively add 
-                   viable_recording_time(MR_index) = sum(~any(isnan([data.(lower),data.(upper),data.ABP,data.(cox)]),2)) / fs;
-                   [~,~,time_below] = outside_limits(data,side,epochs(epoch)*60); overall_time_below(MR_index) = time_below; % apply outside_limits to the entire data (not just a window)
-               end
-                
-               
-               if tertile == 1
-                   
-                   
-                    NIRS_off_series_1 = vertcat(NIRS_off_series_1,[win_before.(nirs_off)' win_after.(nirs_off)']);
-                    NIRS_on_series_1 = vertcat(NIRS_on_series_1,[win_before.(nirs_on)' win_after.(nirs_on)']);
-                    ABP_series_1 = vertcat(ABP_series_1,[win_before.ABP' win_after.ABP']);
-                   
-               elseif tertile == 2
-                   
-                    NIRS_off_series_2 = vertcat(NIRS_off_series_2,[win_before.(nirs_off)' win_after.(nirs_off)']);
-                    NIRS_on_series_2 = vertcat(NIRS_on_series_2,[win_before.(nirs_on)' win_after.(nirs_on)']);
-                    ABP_series_2 = vertcat(ABP_series_2,[win_before.ABP' win_after.ABP']);
-                   
-                   
-               else
-                   
-                    NIRS_off_series_3 = vertcat(NIRS_off_series_3,[win_before.(nirs_off)' win_after.(nirs_off)']);
-                    NIRS_on_series_3 = vertcat(NIRS_on_series_3,[win_before.(nirs_on)' win_after.(nirs_on)']);
-                    ABP_series_3 = vertcat(ABP_series_3,[win_before.ABP' win_after.ABP']);
-                   
-                   
-               end
-               
-               
-            end
            
          
            
            
-            cd(newdir)
+           
 
-            MEAN_ABP_BEFORE = mean(win_before.ABP(~isnan(win_before.ABP)));
-            MEDIAN_ABP_BEFORE = median((win_before.ABP(~isnan(win_before.ABP))));
-            MAX_ABP_BEFORE = max((win_before.ABP(~isnan(win_before.ABP))));
-            MIN_ABP_BEFORE = min((win_before.ABP(~isnan(win_before.ABP))));
+            MEAN_ABP_BEFORE = mean(win_before.(ABP),'omitnan');
+            MEDIAN_ABP_BEFORE = median(win_before.(ABP),'omitnan');
+            MAX_ABP_BEFORE = max(win_before.(ABP));
+            MIN_ABP_BEFORE = min(win_before.(ABP));
             
-            MEAN_ABP_AFTER = mean(win_after.ABP(~isnan(win_after.ABP)));
-            MEDIAN_ABP_AFTER = median(win_after.ABP(~isnan(win_after.ABP)));
-            MAX_ABP_AFTER = max(win_after.ABP(~isnan(win_after.ABP)));
-            MIN_ABP_AFTER = min(win_after.ABP(~isnan(win_after.ABP)));
+            MEAN_ABP_AFTER = mean(win_after.(ABP),'omitnan');
+            MEDIAN_ABP_AFTER = median(win_after.(ABP),'omitnan');
+            MAX_ABP_AFTER = max(win_after.(ABP));
+            MIN_ABP_AFTER = min(win_after.(ABP));
 
-            MEAN_COX_BEFORE = mean(win_before.(cox)(~isnan(win_before.(cox))));
-            MEAN_COX_AFTER = mean(win_after.(cox)(~isnan(win_after.(cox))));
+            MEAN_COX_BEFORE = mean(win_before.(cox),'omitnan');
+            MEAN_COX_AFTER = mean(win_after.(cox),'omitnan');
             
-            MEAN_PRX_BEFORE = mean(win_before.PRx(~isnan(win_before.PRx)));
-            MEAN_PRX_AFTER = mean(win_after.PRx(~isnan(win_after.PRx)));
             
             MEAN_NIRS_ON_BEFORE = mean(win_before.(nirs_on),'omitnan');
             MEAN_NIRS_ON_AFTER = mean(win_after.(nirs_on),'omitnan');
@@ -365,13 +323,25 @@ for epoch = 3
             MEAN_NIRS_OFF_AFTER = mean(win_after.(nirs_off),'omitnan');
 %             NIRS_OFF_EFFECT = MEAN_NIRS_OFF_AFTER - MEAN_NIRS_OFF_BEFORE;
               
+
+            if any(contains(data.Properties.VariableNames,'PRx')) && any(~isnan(data.PRx)) % if PRx is a variable (isnt for hemosphere data)
+                  MEAN_PRX_BEFORE = mean(win_before.PRx(~isnan(win_before.PRx)));
+                  MEAN_PRX_AFTER = mean(win_after.PRx(~isnan(win_after.PRx)));
+            else
+                 MEAN_PRX_BEFORE = NaN;
+                 MEAN_PRX_AFTER = NaN;
+            end
+            
+            
             if any(contains(data.Properties.VariableNames,'MAPopt_PRx')) && any(~isnan(data.MAPopt_PRx)) %  if non-NaN PRx values exist..
                 
+                MAPopt = 'MAPopt_PRx';
                 MEAN_MAPopt_BEFORE = mean(win_before.('MAPopt_PRx')(~isnan(win_before.('MAPopt_PRx'))));
                 MEAN_MAPopt_AFTER = mean(win_after.('MAPopt_PRx')(~isnan(win_after.('MAPopt_PRx'))));
                 
             elseif side == 0 % use MAPopt_flex on the left side
                    
+                MAPopt = 'MAPopt_flex_L';
                 MEAN_MAPopt_BEFORE = mean(win_before.('MAPopt_flex_L')(~isnan(win_before.('MAPopt_flex_L'))));
                 MEAN_MAPopt_AFTER = mean(win_after.('MAPopt_flex_L')(~isnan(win_after.('MAPopt_flex_L'))));
            
@@ -379,6 +349,7 @@ for epoch = 3
                 
                 if any(contains(data.Properties.VariableNames,'MAPopt_flex_R_mmHg_'))
                     
+                    MAPopt = 'MAPopt_flex_R_mmHg_';
                     MEAN_MAPopt_BEFORE = mean(win_before.('MAPopt_flex_R_mmHg_')(~isnan(win_before.('MAPopt_flex_R_mmHg_'))));
                     MEAN_MAPopt_AFTER = mean(win_after.('MAPopt_flex_R_mmHg_')(~isnan(win_after.('MAPopt_flex_R_mmHg_'))));
                    
@@ -386,6 +357,7 @@ for epoch = 3
                     
                 else
                     
+                    MAPopt = 'MAPopt_flex_R';
                     MEAN_MAPopt_BEFORE = mean(win_before.('MAPopt_flex_R')(~isnan(win_before.('MAPopt_flex_R'))));
                     MEAN_MAPopt_AFTER = mean(win_after.('MAPopt_flex_R')(~isnan(win_after.('MAPopt_flex_R'))));
                 
@@ -401,30 +373,76 @@ for epoch = 3
            delta_COX =   MEAN_COX_AFTER -  MEAN_COX_BEFORE; % positive values indicate worsening in autoregulatory function
            delta_PRX = MEAN_PRX_AFTER - MEAN_PRX_BEFORE;
            
+         
+           if selected_analysis
+                
+               if epoch == 3 
+                 
+                   if PERCENT_BELOW_AFTER >= below_threshold % if they spent more than 50% of their time after below LLA....
+                       MR_index = find(strcmp(temp_cohort,MR));
+                       num_responses(MR_index) =  num_responses(MR_index) + 1; % then classify this admin as a response
+
+                   end
+
+                   MR_index = find(strcmp(temp_cohort,MR)); % index of MR in temp_cohort
+                   num_events(MR_index) = num_events(MR_index) + 1; % iteratively add 
+                   times_below{MR_index} = [times_below{MR_index} TIME_BELOW]; % iteratively add 
+             
+                   % covariates for recording as a whole (not with respect
+                   % to epoch)
+                   viable_recording_time(MR_index) = sum(~any(isnan([data.(lower),data.(upper),data.(ABP)]),2)) / fs;
+                   [~,~,time_below] = outside_limits(data,side,epochs(epoch)*60); overall_time_below(MR_index) = time_below; % apply outside_limits to the entire data (not just a window)
+                   [~,~,~,time_above] = outside_limits(data,side,epochs(epoch)*60); overall_time_above(MR_index) = time_above; % apply outside_limits to the entire data (not just a window)
+                   mean_LA_range(MR_index) = mean(data.(upper) - data.(lower),'omitnan');
+                   mean_LLA(MR_index) = mean(data.(lower),'omitnan');
+                   mean_ULA(MR_index) = mean(data.(upper),'omitnan');
+                   mean_TOx(MR_index) = mean(data.(cox),'omitnan');
+                   mean_MAPopt(MR_index) = mean(data.(MAPopt),'omitnan');
+                   mean_ABP(MR_index) = mean(data.(ABP),'omitnan');
+                   
+               end
+                
+               
+               if tertile == 1
+                   
+                   
+                    NIRS_off_series_1 = vertcat(NIRS_off_series_1,[win_before.(nirs_off)' win_after.(nirs_off)']);
+                    NIRS_on_series_1 = vertcat(NIRS_on_series_1,[win_before.(nirs_on)' win_after.(nirs_on)']);
+                    ABP_series_1 = vertcat(ABP_series_1,[win_before.(ABP)' win_after.(ABP)']);
+                   
+               elseif tertile == 2
+                   
+                    NIRS_off_series_2 = vertcat(NIRS_off_series_2,[win_before.(nirs_off)' win_after.(nirs_off)']);
+                    NIRS_on_series_2 = vertcat(NIRS_on_series_2,[win_before.(nirs_on)' win_after.(nirs_on)']);
+                    ABP_series_2 = vertcat(ABP_series_2,[win_before.(ABP)' win_after.(ABP)']);
+                   
+                   
+               else
+                   
+                    NIRS_off_series_3 = vertcat(NIRS_off_series_3,[win_before.(nirs_off)' win_after.(nirs_off)']);
+                    NIRS_on_series_3 = vertcat(NIRS_on_series_3,[win_before.(nirs_on)' win_after.(nirs_on)']);
+                    ABP_series_3 = vertcat(ABP_series_3,[win_before.(ABP)' win_after.(ABP)']);
+                   
+                   
+               end
+               cd(newdir)
+               
+            end
+           
            % PACKAGE DATA
            
-           covar_data = {event_id, MR, med, dose, PERCENT_BELOW_BEFORE*100, PERCENT_ABOVE_BEFORE*100, PERCENT_BELOW_AFTER*100, ...
-                    PERCENT_ABOVE_AFTER*100, MEAN_ABP_BEFORE,  MEAN_ABP_AFTER,  MEAN_COX_BEFORE, ...
-                    MEAN_COX_AFTER,  MEAN_MAPopt_BEFORE, MEAN_MAPopt_AFTER, delta_MAP_AFTER,delta_MAP_BEFORE,MEAN_PRX_BEFORE, MEAN_PRX_AFTER,...
-                    MEAN_NIRS_ON_BEFORE, MEAN_NIRS_ON_AFTER,...
-                    MEAN_NIRS_OFF_BEFORE, MEAN_NIRS_OFF_AFTER,...
-                    MEAN_COx_BELOW,MEAN_COx_NOTBELOW,...
-                    MEAN_PRx_BELOW,MEAN_PRx_NOTBELOW,...
-                    time_taken};
-                    
+
            
-           epoch_file = [epoch_file ; covar_data]; % vertcat this admin onto the epoch file
-           
-%            %% DR. KIM CODE, ADDED 9/28
-%            if epoch == 3 && PERCENT_BELOW_AFTER == 0 && (MEAN_ABP_AFTER - MEAN_ABP_BEFORE) > 0
-%                
-%                
-%                % package requested covariatses
-%                 covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
-%                                   MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER};
-%                 epoch_file_kim = [epoch_file_kim ; covar_kim_data];
-%                 
-%                 % create and save requested plots
+           %% DR. KIM CODE, ADDED 9/28
+           if epoch == 3
+               
+               
+               % package requested covariatses
+                covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
+                                  MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER};
+                epoch_file_kim = [epoch_file_kim ; covar_kim_data];
+                
+                % create and save requested plots
 %                 concat_data = [win_before ; win_after]; % vert concat before and after data windows
 %                 time_mod = concat_data.DateTime - time_taken;    time_mod.Format = 'm';
 %                 x_ticks = time_mod(1):seconds(5*60):time_mod(end);
@@ -432,27 +450,36 @@ for epoch = 3
 %                 time_mod.Format = 'm'; x_ticks = round(x_ticks,'minutes');
 %                
 %             
-%                 
-%                 fig = figure('Renderer', 'painters', 'Position', [10 10 1000 500]);
-%                 plot(time_mod,concat_data.ABP,'black','LineWidth',1.5); hold on;
-%                 plot(time_mod,concat_data.(lower),'Color',[0 0.4470 0.7410]);
-%                 plot(time_mod,concat_data.(upper),'Color',[0 0.4470 0.7410]);
-%                 xticks(x_ticks)
-%                 
-%                 xlabel('Time (min)'); ylabel('MAP (mmHg)'); title(['Event: ', num2str(event_id),', Time taken: ',datestr(time_taken)])
-%                % saveas(fig,[num2str(event_id),'.jpg'])
-%      
+% %                 
+% %                 fig = figure('Renderer', 'painters', 'Position', [10 10 1000 500]);
+% %                 plot(time_mod,concat_data.(ABP),'black','LineWidth',1.5); hold on;
+% %                 plot(time_mod,concat_data.(lower),'Color',[0 0.4470 0.7410]);
+% %                 plot(time_mod,concat_data.(upper),'Color',[0 0.4470 0.7410]);
+% %                 xticks(x_ticks)
+% %                 
+% %                 xlabel('Time (min)'); ylabel('MAP (mmHg)'); title(['Event: ', num2str(event_id),', Time taken: ',datestr(time_taken)])
+% %                % saveas(fig,[num2str(event_id),'.jpg'])
+% %      
 %                     
 %                 time_mod_table = table(time_mod);  time_mod_table.Properties.VariableNames = {['time']};
-%                 abp = table(concat_data.ABP); abp.Properties.VariableNames = {['abp']};
+%                 abp = table(concat_data.(ABP)); abp.Properties.VariableNames = {['abp']};
 %                 lla = table(concat_data.(lower)); lla.Properties.VariableNames = {['lla']};
 %                 ula = table(concat_data.(upper)); ula.Properties.VariableNames = {['ula']};
 %                     
 %                 master_table = [time_mod_table,abp,lla,ula];
-%                % writetable(master_table,[num2str(event_id),'.csv'])
-%                 
-%            end
+               % writetable(master_table,[num2str(event_id),'.csv'])
+                
+           end
           
+            covar_data = {event_id, MR, med, dose, PERCENT_BELOW_BEFORE*100, PERCENT_ABOVE_BEFORE*100, PERCENT_BELOW_AFTER*100, ...
+            PERCENT_ABOVE_AFTER*100, MEAN_ABP_BEFORE,  MEAN_ABP_AFTER,  MEAN_COX_BEFORE, ...
+            MEAN_COX_AFTER,  MEAN_MAPopt_BEFORE, MEAN_MAPopt_AFTER, delta_MAP_AFTER,delta_MAP_BEFORE,MEAN_PRX_BEFORE, MEAN_PRX_AFTER,...
+            MEAN_NIRS_ON_BEFORE, MEAN_NIRS_ON_AFTER,...
+            MEAN_NIRS_OFF_BEFORE, MEAN_NIRS_OFF_AFTER,...
+            time_taken};
+
+           
+           epoch_file = [epoch_file ; covar_data]; % vertcat this admin onto the epoch file
            
         end
         
@@ -461,7 +488,7 @@ for epoch = 3
     
     
     writetable(epoch_file,['Intervention_Analysis_Epoch_', num2str(epochs(epoch)),'.csv'])
-%     writetable(epoch_file_kim,['Intervention_Analysis_KIM_Epoch_', num2str(epochs(epoch)),'.csv']) % DR. KIM CODE, ADDED 9/28
+     writetable(epoch_file_kim,['Intervention_Analysis_KIM_Epoch_', num2str(epochs(epoch)),'.csv']) % DR. KIM CODE, ADDED 9/28
     display(["Just packaged Epoch ", num2str(epochs(epoch))])
     cd(analysis_folder)
     

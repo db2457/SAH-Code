@@ -1,11 +1,16 @@
 function [percent_below,percent_above,time_below,...
-      MEAN_COx_BELOW , MEAN_COx_NOTBELOW,...
-      MEAN_PRx_BELOW,MEAN_PRx_NOTBELOW] = outside_limits(window,side,epoch)
+      time_above] = outside_limits(window,side,epoch)
 %GET_EVENTS Summary of this function goes here
 %   Return NaN if the window is COMPLETELY NaN
 %   epoch: duration of epoch in seconds
+%
+%
 % 11/9/2021: added code to compute absolute and percent differences in NIRS
 % between times when ABP < LLA, within LA, and > ULA
+%
+% 12/16/2021: clarification that percents are calculated as parts of the
+% EPOCH, not the entire recording. Percent-below and percent-above are to
+% be used only for epoch (1hr) analysis.
 
     fs = 0.1;
     
@@ -24,17 +29,23 @@ function [percent_below,percent_above,time_below,...
         COx = "COxr";
     end
     
-    PRx = window.PRx;
-    COx = window.(COx);
+    % define ABP variable b.c. Hemosphere files have MAP not ABP :/
+    if any(contains(window.Properties.VariableNames,'ABP'))
+        ABP = 'ABP';
+    elseif any(contains(window.Properties.VariableNames,'MAP'))
+        ABP = 'MAP';
+    end
+
+%     PRx = window.PRx;
+%     COx = window.(COx);
     
     time = window.DateTime;
-    ABP = window.ABP;
+    ABP = window.(ABP);
     LLA = window.(lower);
     ULA = window.(upper);
     NIRS_on = window.(nirs_on);
     NIRS_off = window.(nirs_off);
-%     COx
-%     PRx = window.
+
     
     
     hyper_index = ABP > ULA; % 1 where true
@@ -47,11 +58,12 @@ function [percent_below,percent_above,time_below,...
    % are using epoch to be more accurate :) the data quality filtering step already took
    % place when we screened for viability
     
-    percent_below = ( sum(hypo_index)/fs ) / epoch; time_below = ( sum(hypo_index)/fs );
-    
+    percent_below = ( sum(hypo_index)/fs ) / epoch;
     percent_above = ( sum (hyper_index)/fs ) / epoch;
     
-    
+    time_below = ( sum(hypo_index)/fs );
+    time_above = ( sum(hyper_index)/fs);
+     
     
     % NIRS analysis added 11/9/2021 per Nils request
     
@@ -67,18 +79,18 @@ function [percent_below,percent_above,time_below,...
     
 
     % COx and PRx analysis added 12/9/2021 per Nils request
-    
-    MEAN_COx_BELOW = mean(COx(hypo_index),'omitnan');
-    MEAN_COx_WITHIN = mean(COx(within_index),'omitnan');
-    MEAN_COx_ABOVE = mean(COx(hyper_index),'omitnan');
-    MEAN_COx_NOTBELOW = mean(COx(~hypo_index),'omitnan');
-    
-     
-    MEAN_PRx_BELOW = mean(PRx(hypo_index),'omitnan');
-    MEAN_PRx_WITHIN = mean(PRx(within_index),'omitnan');
-    MEAN_PRx_ABOVE = mean(PRx(hyper_index),'omitnan');
-    MEAN_PRx_NOTBELOW = mean(PRx(~hypo_index),'omitnan');
-    
+%     
+%     MEAN_COx_BELOW = mean(COx(hypo_index),'omitnan');
+%     MEAN_COx_WITHIN = mean(COx(within_index),'omitnan');
+%     MEAN_COx_ABOVE = mean(COx(hyper_index),'omitnan');
+%     MEAN_COx_NOTBELOW = mean(COx(~hypo_index),'omitnan');
+%     
+%      
+%     MEAN_PRx_BELOW = mean(PRx(hypo_index),'omitnan');
+%     MEAN_PRx_WITHIN = mean(PRx(within_index),'omitnan');
+%     MEAN_PRx_ABOVE = mean(PRx(hyper_index),'omitnan');
+%     MEAN_PRx_NOTBELOW = mean(PRx(~hypo_index),'omitnan');
+%     
  
   
 % %DEBUGGING
