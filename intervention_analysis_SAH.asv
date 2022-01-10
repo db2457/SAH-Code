@@ -66,7 +66,7 @@ mean_MAPopt = zeros(1,length(temp_cohort))';
 mean_ABP = zeros(1,length(temp_cohort))';
 
 %% 
-selected_analysis = 1;
+selected_analysis = 0;
 kim_analysis = 1;
 
 
@@ -469,7 +469,7 @@ for epoch = 3
 
            
            %% DR. KIM CODE, ADDED 9/28
-           if epoch == 3 && kim_analysis && ismember(event_id,overlap.Var1)
+           if epoch == 3 && kim_analysis
                
                
                % package requested covariatses
@@ -502,7 +502,7 @@ for epoch = 3
                 ula = table(concat_data.(upper)); ula.Properties.VariableNames = {['ula']};
                     
                 master_table = [time_mod_table,abp,lla,ula];
-                writetable(master_table,[num2str(event_id),'.csv'])
+               writetable(master_table,[num2str(event_id),'.csv'])
                 
            end
           
@@ -514,7 +514,7 @@ for epoch = 3
             time_taken};
 
            
-            epoch_file = [epoch_file ; covar_data]; % vertcat this admin onto the epoch file
+           epoch_file = [epoch_file ; covar_data]; % vertcat this admin onto the epoch file
            
         end
         
