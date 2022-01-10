@@ -2,7 +2,7 @@
 % 11/23: Added code to search for MAP or ABP. MAP exists in hemosphere
 % files. ABP exists in ICM+ files.
 
-% MAKE SURE IN MAIN DIRECTORY BEFORE RUNNING
+
 cd 'C:\Users\db2457\OneDrive - Yale University\Desktop\Projects\Intervention Analysis\SAH Sub Analysis\SAH-Code'
 code_folder = cd; % directory where code files are stored
 cd ..
@@ -66,8 +66,8 @@ mean_MAPopt = zeros(1,length(temp_cohort))';
 mean_ABP = zeros(1,length(temp_cohort))';
 
 %% 
-selected_analysis = 1;
-kim_analysis = 1;
+selected_analysis = 1; % calculate summary statistics for a selected cohort
+kim_analysis = 1; % perform Dr. Kim's analyses
 
 
 %% IMPORT ICM+ DATA
@@ -80,49 +80,44 @@ files = dir( fullfile(cd,'*.csv') );   %# list all .csv files in directory
 files = {files.name}';                      %'# get file names
 warning('off','MATLAB:table:ModifiedAndSavedVarnames') % turn annoying import warnings off
 
-for file = 1:length(files) % iterate through patients
+for patient = 1:height(cohort) % iterate through patients in cohort file 
   
-    filename = files{file}; 
-    table_file = readtable(filename); % read CSV file
     
-    % var check
-    
-%     if ~any(contains(table.Properties.VariableNames,'LLA_R')) % quick and dirty fix to exclude files without nirs data
-%         display([filename, 'has no LA data'])
-%         continue
-%     end
-%     
-
-      % if patient is not in the cohort, don't bother uploading... (leave
-      % entry in ALL_DATA blank)
-    
-      split_filename = split(files{file},'_');
-      MR = split_filename{1};% assumes format MR_ ...
-      cohort_ind =  find(strcmp(cohort.mrn, MR)); % index of MR in cohort file
-
-      if isempty(cohort_ind) % if the ICM+ CSV file does not exist in cohort
-        display([MR, ' does not exist in the cohort'])
-        continue % skip this patient
-      end
-
-      % if patient is excluded, don't bother uploading... (leave
-      % entry in ALL_DATA blank)
+     MR = cohort.mrn{patient};
+     MR_files = split(files,'_'); % MRs of all CSV files
+        
+   
       
-      if ~isnan(cohort.Exclude(cohort_ind)) % if this patient is excluded per cohort file... (good files have NaNs)
-        reason = cohort.Status(cohort_ind);
+      if ~isnan(cohort.exclude_intervention(patient)) %   % if patient is excluded, don't bother importing... 
+        reason = cohort.Status(patient);
         reason = reason{1};
         display([MR, ' excluded: ',reason])
         continue % skip this patient
       end 
         
+     file_ind =  find(strcmp(MR, MR_files(:,1))); % index of filename that corresponds to this patient
+      
+      
+      if isempty(file_ind) % if the ICM+ CSV file does not exist in file directory
+        display([MR, ' does not have a .CSV file'])
+        continue % skip this patient
+        
+      else % import it 
+          
+          data_table = readtable(files{file_ind});
+          
+      end
+
+    
     % if actual CSV file is empty
-    if isempty(table_file)
-        disp([filename, 'is empty'])
-        continue
+    if isempty(data_table)
+        disp([filename, ' is an empty CSV file'])
+        ALL_DATA{patient} = []; % mark with empty spot
     end
     
     
-    ALL_DATA{file} = table_file; % append to cell array
+    
+    ALL_DATA{patient} = data_table; % append to cell array
            
 end
 
@@ -177,8 +172,7 @@ for epoch = 3
         % collect information
         data = ALL_DATA{patient};
         time = data.DateTime;
-        split_filename = split(files{patient},'_');
-        MR = split_filename{1};% assumes format MR_ ...
+        MR = cohort.mrn{patient};
         
         
         cohort_ind =  find(strcmp(cohort.mrn, MR)); % index of MR in cohort file
