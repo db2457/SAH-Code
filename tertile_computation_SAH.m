@@ -3,10 +3,10 @@
 cd 'C:\Users\db2457\OneDrive - Yale University\Desktop\Projects\Intervention Analysis\SAH Sub Analysis\SAH-Code'
 cd ..
 main_dir = cd;
-cd('Analysis\Epoch 60 min')
+cd('Analysis')
 master_data = readtable('Intervention_Analysis_Epoch_60.csv');
 cd(main_dir)
-cohort = readtable('SAH_cohort_SELECTED_chartreview.xlsx');
+cohort = readtable('SAH_cohort_SELECTED.xlsx');
 
 mean_map_reductions = []; % indices of this array matches cohort file
 
@@ -41,7 +41,7 @@ third_tertile_inds = find(mean_map_reductions > second_breakpoint); % LEAST MAP 
 
 assignment = zeros(height(cohort),1); % 1 x N array where N = number of patients. Each entry is the tertile assignment (1,2,3) for the patient 
 
-assignment(first_tertile_inds) = 1; 
+assignment(first_tertile_inds) = 1;  % greatest map reductoin
 assignment(second_tertile_inds) = 2;
 assignment(third_tertile_inds) = 3;
 
@@ -217,24 +217,24 @@ for tertile = 1:3
 
    % fraction of viable monitoring time spent below
    cohort_set = cohort(assignment == tertile,:);
-   calc = (cohort_set.total_time_below_sec ./ cohort_set.viable_monitoring_time_sec) * 100;
-   percent_below = [{mean(calc,'omitnan')} {std(calc,'omitnan')}]; % proportion of viable monitoring time spent below LLA
+%    calc = (cohort_set.total_time_below_sec ./ cohort_set.viable_monitoring_time_sec) * 100;
+%    percent_below = [{mean(calc,'omitnan')} {std(calc,'omitnan')}]; % proportion of viable monitoring time spent below LLA
 
    % mRS fractions
    N = height(cohort_set); % # of patients in this tertile cohort
-   num_0 = sum(cohort_set.mRS == 0);
-   num_1 = sum(cohort_set.mRS == 1);
-   num_2 = sum(cohort_set.mRS == 2);
-   num_3 = sum(cohort_set.mRS == 3);
-   num_4 = sum(cohort_set.mRS == 4);
-   num_5 = sum(cohort_set.mRS == 5);
-   num_6 = sum(cohort_set.mRS == 6);
+   num_0 = sum(cohort_set.mrs_90 == 0);
+   num_1 = sum(cohort_set.mrs_90 == 1);
+   num_2 = sum(cohort_set.mrs_90 == 2);
+   num_3 = sum(cohort_set.mrs_90 == 3);
+   num_4 = sum(cohort_set.mrs_90 == 4);
+   num_5 = sum(cohort_set.mrs_90== 5);
+   num_6 = sum(cohort_set.mrs_90 == 6);
 
 
    mRS_row =  [ {(num_0 / N)*100} {(num_1 / N)*100} {(num_2 / N)*100} {(num_3 / N)*100} {(num_4 / N)*100} {(num_5 / N)*100} {(num_6 / N)*100} ];
 
 
-    percent_below_time = [percent_below_time ; percent_below];
+%     percent_below_time = [percent_below_time ; percent_below];
     mRS_fracs = [mRS_fracs ; mRS_row];
 end
 
