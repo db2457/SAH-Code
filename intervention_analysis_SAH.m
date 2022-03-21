@@ -41,8 +41,12 @@ covariates = {'event_id', 'MR', 'med', 'dose', 'PERCENT_BELOW_BEFORE', 'PERCENT_
                     'PERCENT_ABOVE_AFTER', 'MEAN_ABP_BEFORE',  'MEAN_ABP_AFTER',  'MEAN_COX_BEFORE', ...
                     'MEAN_COX_AFTER',  'MEAN_MAPopt_BEFORE', 'MEAN_MAPopt_AFTER', 'delta_MAP_AFTER','delta_MAP_BEFORE','MEAN_PRX_BEFORE', 'MEAN_PRX_AFTER',...
                     'MEAN_NIRS_BEFORE', 'MEAN_NIRS_AFTER',...
+                    'MEAN_LLA_BEFORE',   'MEAN_LLA_AFTER',...
+                    'MEAN_ULA_BEFORE','MEAN_ULA_AFTER',...
                     'time_taken'};
-                            
+                
+                 
+    
                 
 covariates_kim = {'event_id','mrn','date','PERCENT_BELOW_AFTER','mean_before','mean_after','median_before','median_after','min_before',...
                      'min_after','max_before','max_after'};  % DR. KIM CODE, ADDED 9/28
@@ -69,10 +73,12 @@ mean_MAPopt = zeros(1,length(temp_cohort))';
 mean_ABP = zeros(1,length(temp_cohort))';
 mean_PRx = zeros(1,length(temp_cohort))';
 
+average_hemispheres = 0; % 1 = average across hemispheres 
+
 
 %% 
-selected_analysis = 1; % calculate summary statistics for a selected cohort
-kim_analysis = 0; % perform Dr. Kim's analyses
+selected_analysis = 0; % calculate summary statistics for a selected cohort
+kim_analysis = 1; % perform Dr. Kim's analyses
 
 
 %% IMPORT ICM+ DATA
@@ -252,6 +258,8 @@ for epoch = 3
 
 
             if any(contains(data.Properties.VariableNames,'MAPopt_flex_R_mmHg_'))
+                
+ 
 
                 mapopt_mean = table(mean([data.MAPopt_flex_L, data.MAPopt_flex_R_mmHg_],2,'omitnan')); mapopt_mean.Properties.VariableNames = {'mapopt'};
 
@@ -452,6 +460,12 @@ for epoch = 3
             MAX_ABP_AFTER = max(win_after.(ABP));
             MIN_ABP_AFTER = min(win_after.(ABP));
 
+            MEAN_LLA_BEFORE = mean(win_before.lower,'omitnan');
+            MEAN_LLA_AFTER = mean(win_after.lower,'omitnan');
+            
+            MEAN_ULA_BEFORE = mean(win_before.upper,'omitnan');
+            MEAN_ULA_AFTER = mean(win_after.upper,'omitnan');
+            
             if NIRS_signal_exists
                 
                 MEAN_COX_BEFORE = mean(win_before.cox,'omitnan');
@@ -593,13 +607,15 @@ for epoch = 3
 
            
            %% DR. KIM CODE, ADDED 9/28
-           if epoch == 3 && kim_analysis && ismember(event_id,overlap.Var1)
+           if epoch == 3 && kim_analysis 
+              
                % ismember(event_id,overlap.Var1)
                
                
                % package requested covariatses
                 covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
                                   MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER};
+                
                 epoch_file_kim = [epoch_file_kim ; covar_kim_data];
                 
                 % create and save requested plots
@@ -639,6 +655,8 @@ for epoch = 3
             PERCENT_ABOVE_AFTER*100, MEAN_ABP_BEFORE,  MEAN_ABP_AFTER,  MEAN_COX_BEFORE, ...
             MEAN_COX_AFTER,  MEAN_MAPopt_BEFORE, MEAN_MAPopt_AFTER, delta_MAP_AFTER,delta_MAP_BEFORE,MEAN_PRX_BEFORE, MEAN_PRX_AFTER,...
             MEAN_NIRS_BEFORE, MEAN_NIRS_AFTER,...
+            MEAN_LLA_BEFORE,   MEAN_LLA_AFTER,...
+            MEAN_ULA_BEFORE,   MEAN_ULA_AFTER,...
             time_taken};
 
            
