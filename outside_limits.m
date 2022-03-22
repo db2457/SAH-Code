@@ -1,5 +1,5 @@
 function [percent_below,percent_above,time_below,...
-      time_above] = outside_limits(window,side,epoch)
+      time_above] = outside_limits(window,epoch)
 %GET_EVENTS Summary of this function goes here
 %   Return NaN if the window is COMPLETELY NaN
 %   epoch: duration of epoch in seconds
@@ -14,20 +14,6 @@ function [percent_below,percent_above,time_below,...
 
     fs = 0.1;
     
-    if side == 0
-        lower = "LLA_L";
-        upper = "ULA_L";
-        nirs_on = "rSO2L"; % stroke side
-        nirs_off = "rSO2R";
-        COx = "COxl";
-  
-    else
-        lower = "LLA_R";
-        upper = "ULA_R";
-        nirs_on = "rSO2R"; % stroke side
-        nirs_off = "rSO2L";
-        COx = "COxr";
-    end
     
     % define ABP variable b.c. Hemosphere files have MAP not ABP :/
     if any(contains(window.Properties.VariableNames,'ABP'))
@@ -41,10 +27,9 @@ function [percent_below,percent_above,time_below,...
     
     time = window.DateTime;
     ABP = window.(ABP);
-    LLA = window.(lower);
-    ULA = window.(upper);
-    NIRS_on = window.(nirs_on);
-    NIRS_off = window.(nirs_off);
+    LLA = window.lower;
+    ULA = window.upper;
+    %NIRS = window.nirs;
 
     
     
@@ -67,16 +52,16 @@ function [percent_below,percent_above,time_below,...
     
     % NIRS analysis added 11/9/2021 per Nils request
     
-    MEAN_NIRS_ON_BELOW = mean(NIRS_on(hypo_index),'omitnan');
-    MEAN_NIRS_ON_WITHIN = mean(NIRS_on(within_index),'omitnan');
-    MEAN_NIRS_ON_ABOVE = mean(NIRS_on(hyper_index),'omitnan');
-    MEAN_NIRS_ON_NOTBELOW = mean(NIRS_on(~hypo_index),'omitnan');
-    
-    MEAN_NIRS_OFF_BELOW = mean(NIRS_off(hypo_index),'omitnan');
-    MEAN_NIRS_OFF_WITHIN = mean(NIRS_off(within_index),'omitnan');
-    MEAN_NIRS_OFF_ABOVE = mean(NIRS_off(hyper_index),'omitnan');
-    MEAN_NIRS_OFF_NOTBELOW = mean(NIRS_off(~hypo_index),'omitnan');
-    
+%     MEAN_NIRS_ON_BELOW = mean(NIRS_on(hypo_index),'omitnan');
+%     MEAN_NIRS_ON_WITHIN = mean(NIRS_on(within_index),'omitnan');
+%     MEAN_NIRS_ON_ABOVE = mean(NIRS_on(hyper_index),'omitnan');
+%     MEAN_NIRS_ON_NOTBELOW = mean(NIRS_on(~hypo_index),'omitnan');
+%     
+%     MEAN_NIRS_OFF_BELOW = mean(NIRS_off(hypo_index),'omitnan');
+%     MEAN_NIRS_OFF_WITHIN = mean(NIRS_off(within_index),'omitnan');
+%     MEAN_NIRS_OFF_ABOVE = mean(NIRS_off(hyper_index),'omitnan');
+%     MEAN_NIRS_OFF_NOTBELOW = mean(NIRS_off(~hypo_index),'omitnan');
+%     
 
     % COx and PRx analysis added 12/9/2021 per Nils request
 %     
@@ -113,4 +98,3 @@ end
 % plot(window.DateTime,ULA)
 % 
 % legend('ABP','LLA','ULA')
-
