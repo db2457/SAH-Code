@@ -46,7 +46,7 @@ temp_cohort = readtable('SAH_cohort_SELECTED.xlsx'); temp_cohort = temp_cohort.m
 
 
 
-side = 1; % Which side is being analyzed. 0 = LEFT, 1 = RIGHT
+side = 0; % Which side is being analyzed. 0 = LEFT, 1 = RIGHT
 %% 
 
 kim_analysis = 1; % perform Dr. Kim's analyses
@@ -448,9 +448,13 @@ for epoch = 3
            if epoch == 3 && kim_analysis
                
                
+             % ismember(event_id,overlap.Var1)
+               
+               
                % package requested covariatses
                 covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
                                   MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER};
+                
                 epoch_file_kim = [epoch_file_kim ; covar_kim_data];
                 
                 % create and save requested plots
@@ -466,18 +470,22 @@ for epoch = 3
                 plot(time_mod,concat_data.(ABP),'black','LineWidth',1.5); hold on;
                 plot(time_mod,concat_data.lower,'Color',[0 0.4470 0.7410]);
                 plot(time_mod,concat_data.upper,'Color',[0 0.4470 0.7410]);
+                plot(time_mod,concat_data.mapopt);
                 xticks(x_ticks)
+
                 
                 xlabel('Time (min)'); ylabel('MAP (mmHg)'); title(['Event: ', num2str(event_id),', Time taken: ',datestr(time_taken)])
                 saveas(fig,[num2str(event_id),'.jpg'])
+                close all
      
                     
                 time_mod_table = table(time_mod);  time_mod_table.Properties.VariableNames = {['time']};
                 abp = table(concat_data.(ABP)); abp.Properties.VariableNames = {['abp']};
                 lla = table(concat_data.lower); lla.Properties.VariableNames = {['lla']};
                 ula = table(concat_data.upper); ula.Properties.VariableNames = {['ula']};
+                mapopt = table(concat_data.mapopt); mapopt.Properties.VariableNames = {['mapopt']};
                     
-                master_table = [time_mod_table,abp,lla,ula];
+                master_table = [time_mod_table,abp,lla,ula,mapopt];
                 writetable(master_table,[num2str(event_id),'.csv'])
                 
            end
