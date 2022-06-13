@@ -25,7 +25,7 @@ allowed_medications = { ...
 viable_threshold = 0.80; %what proportion of data must be viable for window analysis?
 below_threshold = 0.5; % min percent below of epoch time threhsold to be considered critical hypoperfusion
 
-jdat_filename = "JDAT_SAH_only.csv";
+jdat_filename = "JDAT_SAH_only_EDIT.csv";
 cohort_filename = "SAH_cohort_ALL.xlsx";
 eeg_overlap_filename = "EEG_overlap.csv";
 
@@ -73,12 +73,11 @@ mean_MAPopt = zeros(1,length(temp_cohort))';
 mean_ABP = zeros(1,length(temp_cohort))';
 mean_PRx = zeros(1,length(temp_cohort))';
 
-average_hemispheres = 0; % 1 = average across hemispheres 
 
 
 %% 
-selected_analysis = 0; % calculate summary statistics for a selected cohort
-kim_analysis = 1; % perform Dr. Kim's analyses
+selected_analysis = 1; % calculate summary statistics for a selected cohort
+kim_analysis = 0; % perform Dr. Kim's analyses
 
 
 %% IMPORT ICM+ DATA
@@ -175,6 +174,8 @@ for epoch = 3
     
     for patient = 1:length(ALL_DATA)
         
+        nirs_data_used_indicator = 0; % switches to 1 if nirs data is used
+        
         % skip if empty
         if isempty(ALL_DATA{patient})
             continue
@@ -193,6 +194,14 @@ for epoch = 3
         
         if selected_analysis 
             
+            sub_ind = regexpi(MR,'\([\d]\)'); % match (/d)
+
+            if ~isempty(sub_ind) % if a (/d) exists in the MR
+
+                MR = MR(1: sub_ind - 1);
+
+            end
+        
             MR_index = find(strcmp(temp_cohort,MR)); % index of MR in temp_cohort
             recording_time(MR_index) = height(data) / fs; % total monitoring time (s)
        
@@ -351,8 +360,17 @@ for epoch = 3
 
         
         % match with JDAT
+        sub_ind = regexpi(MR,'\([\d]\)'); % match (/d)
+        
+        if ~isempty(sub_ind) % if a (/d) exists in the MR
+           
+            MR = MR(1: sub_ind - 1);
+            
+        end
+        
         jdat_indexes = find(strcmp(jdat.MRN,MR) );
         admins = jdat(jdat_indexes,:); % slices JDAT data for just one patient
+        
         admins = admins(contains(admins.EPIC_MED_NAME,allowed_medications),:); % select only those admins that are in the allowed medication list
 
    
@@ -513,6 +531,7 @@ for epoch = 3
          
            if selected_analysis % entered for every med admin
                 
+             
                if epoch == 3 
                  
                    if PERCENT_BELOW_AFTER >= below_threshold % if they spent more than 50% of their time after below LLA....
@@ -678,7 +697,7 @@ for epoch = 3
     end
     
   
-    display(["Just packaged Epoch ", num2str(epochs(epoch))])
+    display(['Just packaged Epoch ', num2str(epochs(epoch)), ' with ', num2str(height(epoch_file)), ' events.'])
     cd(analysis_folder)
     
 end
@@ -718,5 +737,11 @@ times_below_std = cellfun(@std,times_below);
 % ABP_2 = std(ABP_series_2,1,'omitnan')';
 % ABP_3 = std(ABP_series_3,1,'omitnan')';
 % 
-% 
+
+
+
+export = [num_events num_responses recording_time viable_recording_time overall_time_below ...
+          overall_time_above mean_LA_range mean_LLA mean_ULA mean_TOx mean_MAPopt mean_ABP ...
+          times_below_mean times_below_std map_drops_mean mean_PRx nirs_data_used];
+
 
