@@ -35,10 +35,10 @@ jdat = readtable(jdat_filename); jdat.MAR_TAKEN_TIME = datetime(jdat.MAR_TAKEN_T
 cohort = readtable(cohort_filename);
 overlap = readtable(eeg_overlap_filename);
 fs = 0.1;
-off_injury = 0; % 0 = analyze injured sides. 1 = analyze uninjured sides
+
                 
-covariates_kim = {'event_id','mrn','date','PERCENT_BELOW_AFTER','mean_before','mean_after','median_before','median_after','min_before',...
-                     'min_after','max_before','max_after'};  % DR. KIM CODE, ADDED 9/28
+covariates_kim = {'event_id','mrn','date','percent_below_before','percent_below_after','mean_before','mean_after','median_before','median_after','min_before',...
+                     'min_after','max_before','max_after','auc_below_before','auc_below_after'};  % DR. KIM CODE, ADDED 9/28
 %               
 % event_interest = overlap.event_id; % DR. KIM CODE, ADDED 9/28
 
@@ -441,10 +441,16 @@ for epoch = 3
             MAX_ABP_AFTER = max(win_after.(ABP));
             MIN_ABP_AFTER = min(win_after.(ABP));
 
-  
-             
+            
+            coord_valid_before = find(~any(isnan([win_before.lower,win_before.(ABP)]),2)); % 1 where valid signal exists
+            coord_valid_after = find(~any(isnan([win_after.lower,win_after.(ABP)]),2));
+            
+            AUC_before = trapz(coord_valid_before ./ fs, win_before.lower(coord_valid_before)) - trapz(coord_valid_before ./ fs, win_before.(ABP)(coord_valid_before)); %X = uniform spacing between samples (s) = sampling period = 1/fs
+            AUC_after = trapz(coord_valid_after ./ fs, win_after.lower(coord_valid_after)) - trapz(coord_valid_after ./ fs, win_after.(ABP)(coord_valid_after)); %X = uniform spacing between samples (s) = sampling period = 1/fs
+            
+        
            cd(newdir)
-              %% DR. KIM CODE, ADDED 9/28
+              % DR. KIM CODE, ADDED 9/28
            if epoch == 3 && kim_analysis
                
                
@@ -452,41 +458,41 @@ for epoch = 3
                
                
                % package requested covariatses
-                covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
-                                  MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER};
+                covar_kim_data = {event_id,MR,time_taken,PERCENT_BELOW_BEFORE*100,PERCENT_BELOW_AFTER*100, MEAN_ABP_BEFORE, MEAN_ABP_AFTER, MEDIAN_ABP_BEFORE, MEDIAN_ABP_AFTER,...
+                                  MIN_ABP_BEFORE,MIN_ABP_AFTER,MAX_ABP_BEFORE,MAX_ABP_AFTER,AUC_before,AUC_after};
                 
                 epoch_file_kim = [epoch_file_kim ; covar_kim_data];
                 
-                % create and save requested plots
-                concat_data = [win_before ; win_after]; % vert concat before and after data windows
-                time_mod = concat_data.DateTime - time_taken;    time_mod.Format = 'm';
-                x_ticks = time_mod(1):seconds(5*60):time_mod(end);
-                
-                time_mod.Format = 'm'; x_ticks = round(x_ticks,'minutes');
-               
-            
-                
-                fig = figure('Renderer', 'painters', 'Position', [10 10 1000 500],'visible','off');
-                plot(time_mod,concat_data.(ABP),'black','LineWidth',1.5); hold on;
-                plot(time_mod,concat_data.lower,'Color',[0 0.4470 0.7410]);
-                plot(time_mod,concat_data.upper,'Color',[0 0.4470 0.7410]);
-                plot(time_mod,concat_data.mapopt);
-                xticks(x_ticks)
-
-                
-                xlabel('Time (min)'); ylabel('MAP (mmHg)'); title(['Event: ', num2str(event_id),', Time taken: ',datestr(time_taken)])
-                saveas(fig,[num2str(event_id),'.jpg'])
-                close all
-     
-                    
-                time_mod_table = table(time_mod);  time_mod_table.Properties.VariableNames = {['time']};
-                abp = table(concat_data.(ABP)); abp.Properties.VariableNames = {['abp']};
-                lla = table(concat_data.lower); lla.Properties.VariableNames = {['lla']};
-                ula = table(concat_data.upper); ula.Properties.VariableNames = {['ula']};
-                mapopt = table(concat_data.mapopt); mapopt.Properties.VariableNames = {['mapopt']};
-                    
-                master_table = [time_mod_table,abp,lla,ula,mapopt];
-                writetable(master_table,[num2str(event_id),'.csv'])
+%                 % create and save requested plots
+%                 concat_data = [win_before ; win_after]; % vert concat before and after data windows
+%                 time_mod = concat_data.DateTime - time_taken;    time_mod.Format = 'm';
+%                 x_ticks = time_mod(1):seconds(5*60):time_mod(end);
+%                 
+%                 time_mod.Format = 'm'; x_ticks = round(x_ticks,'minutes');
+%                
+%             
+%                 
+%                 fig = figure('Renderer', 'painters', 'Position', [10 10 1000 500],'visible','off');
+%                 plot(time_mod,concat_data.(ABP),'black','LineWidth',1.5); hold on;
+%                 plot(time_mod,concat_data.lower,'Color',[0 0.4470 0.7410]);
+%                 plot(time_mod,concat_data.upper,'Color',[0 0.4470 0.7410]);
+%                 plot(time_mod,concat_data.mapopt);
+%                 xticks(x_ticks)
+% 
+%                 
+%                 xlabel('Time (min)'); ylabel('MAP (mmHg)'); title(['Event: ', num2str(event_id),', Time taken: ',datestr(time_taken)])
+%                 saveas(fig,[num2str(event_id),'.jpg'])
+%                 close all
+%      
+%                     
+%                 time_mod_table = table(time_mod);  time_mod_table.Properties.VariableNames = {['time']};
+%                 abp = table(concat_data.(ABP)); abp.Properties.VariableNames = {['abp']};
+%                 lla = table(concat_data.lower); lla.Properties.VariableNames = {['lla']};
+%                 ula = table(concat_data.upper); ula.Properties.VariableNames = {['ula']};
+%                 mapopt = table(concat_data.mapopt); mapopt.Properties.VariableNames = {['mapopt']};
+%                     
+%                 master_table = [time_mod_table,abp,lla,ula,mapopt];
+%                 writetable(master_table,[num2str(event_id),'.csv'])
                 
            end
           
